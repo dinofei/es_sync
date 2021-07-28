@@ -1,0 +1,16 @@
+{
+    "name": "es_01-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+        "tasks.max": "1",
+        "database.hostname": "host.docker.internal",
+        "database.port": "3306",
+        "database.user": "canal",
+        "database.password": "canal12345",
+        "database.server.id": "2",
+        "database.server.name": "dbserver1",
+        "database.include": "es_01",
+        "database.history.kafka.bootstrap.servers": "kafka:9092",
+        "database.history.kafka.topic": "schema-changes.es_01"
+    }
+}

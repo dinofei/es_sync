@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../Server/canal-server-1.1.5"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../../Server/rocketmq-4.9"
+		},
+		{
+			"path": "../../Server/canal-adapter-1.1.5"
+		}
+	],
+	"settings": {}
+}

@@ -1,0 +1,162 @@
+version: '2.2'
+services:
+  cerebro:
+    image: lmenezes/cerebro:0.8.3
+    container_name: cerebro
+    ports:
+      - "9000:9000"
+    command:
+      - -Dhosts.0.host=http://elasticsearch:9200
+    networks:
+      - es7net
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.1.0
+    container_name: kibana7
+    environment:
+      - I18N_LOCALE=zh-CN
+      - XPACK_GRAPH_ENABLED=true
+      - TIMELION_ENABLED=true
+      - XPACK_MONITORING_COLLECTION_ENABLED="true"
+    ports:
+      - "5601:5601"
+    networks:
+      - es7net
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.1.0
+    container_name: es7_01
+    environment:
+      - cluster.name=geektime
+      - node.name=es7_01
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - discovery.seed_hosts=es7_01,es7_02
+      - cluster.initial_master_nodes=es7_01,es7_02
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./data1:/usr/share/elasticsearch/data
+    ports:
+      - 9300:9300
+      - 9200:9200
+    networks:
+      - es7net
+  elasticsearch2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.1.0
+    container_name: es7_02
+    environment:
+      - cluster.name=geektime
+      - node.name=es7_02
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - discovery.seed_hosts=es7_01,es7_02
+      - cluster.initial_master_nodes=es7_01,es7_02
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./data2:/usr/share/elasticsearch/data
+    ports:
+      - 9201:9200  
+    networks:
+      - es7net
+  rmqnamesrv:
+    image: foxiswho/rocketmq:4.8.0
+    container_name: rmqnamesrv
+    ports:
+      - 9876:9876
+    # volumes:
+    #   - ./rmqs/logs:/home/rocketmq/logs
+    #   - ./rmqs/store:/home/rocketmq/store
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -Xms512M -Xmx512M -Xmn128m"
+    command: ["sh","mqnamesrv"]
+    networks:
+        - es7net
+  rmqbroker:
+    image: foxiswho/rocketmq:4.8.0
+    container_name: rmqbroker
+    ports:
+      - 10909:10909
+      - 10911:10911
+    volumes:
+    #   - ./rmq/logs:/home/rocketmq/logs
+    #   - ./rmq/store:/home/rocketmq/store
+      - ./rmq/broker.conf:/etc/rocketmq/broker.conf
+    environment:
+        JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -Xms512M -Xmx512M -Xmn128m"
+    command: ["sh","mqbroker","-c", "/etc/rocketmq/broker.conf","-n","rmqnamesrv:9876","autoCreateTopicEnable=true"]
+    depends_on:
+      - rmqnamesrv
+    networks:
+      - es7net
+  rmqconsole:
+    image: styletang/rocketmq-console-ng
+    container_name: rmqconsole
+    ports:
+      - 8180:8080
+    environment:
+        JAVA_OPTS: "-Drocketmq.namesrv.addr=rmqnamesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
+    depends_on:
+      - rmqnamesrv
+    networks:
+      - es7net
+  zookeeper:
+    image: debezium/zookeeper:1.6
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - es7net  
+  kafka:
+    image: debezium/kafka:1.6
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      ZOOKEEPER_CONNECT: zookeeper:2181
+      ADVERTISED_HOST_NAME: 192.168.10.103
+    networks:
+      - es7net
+    depends_on: 
+      - zookeeper            
+  kafka_manager:
+    image: hlebalbau/kafka-manager:stable
+    container_name: kafka_manager
+    ports:
+      - "9000:9000"
+    environment:
+      ZK_HOSTS: "zookeeper:2181"
+      APPLICATION_SECRET: "123456"
+    networks:
+      - es7net
+    depends_on: 
+      - kafka
+  debezium_connect:
+    image: debezium/connect:1.6
+    container_name: debuzium_connect
+    ports:
+      - "8083:8083"
+    environment:
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: "my_connect_configs"
+      OFFSET_STORAGE_TOPIC: "my_connect_offsets"
+      STATUS_STORAGE_TOPIC: "my_connect_statuses"
+      BOOTSTRAP_SERVERS: "kafka:9092"
+    networks:
+      - es7net
+  maxwell:
+    image: zendesk/maxwell
+    container_name: maxwell
+    networks:
+      - es7net
+    volumes: 
+      - "./maxwell/config.properties:/app/config.properties"
+    command: ["bin/maxwell","-config","/app/config.properties"]  
+
+    
+networks:
+  es7net:
+    driver: bridge
