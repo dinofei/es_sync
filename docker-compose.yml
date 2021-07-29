@@ -117,7 +117,7 @@ services:
       - "9092:9092"
     environment:
       ZOOKEEPER_CONNECT: zookeeper:2181
-      ADVERTISED_HOST_NAME: 192.168.10.103
+      ADVERTISED_HOST_NAME: 192.168.30.87
     networks:
       - es7net
     depends_on: 
